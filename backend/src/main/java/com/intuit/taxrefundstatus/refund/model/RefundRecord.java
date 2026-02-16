@@ -84,7 +84,7 @@ public class RefundRecord {
         this.availableAtEstimated = availableAtEstimated;
     }
 
-    public void updateFromIrw(RefundStatus status, BigDecimal expectedAmount, String irsTrackingId) {
+    public void updateFromIrs(RefundStatus status, BigDecimal expectedAmount, String irsTrackingId) {
         this.status = status;
         this.expectedAmount = expectedAmount;
         this.irsTrackingId = irsTrackingId;

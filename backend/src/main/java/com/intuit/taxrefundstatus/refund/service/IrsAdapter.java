@@ -9,7 +9,7 @@ public interface IrsAdapter {
 
     record IrsRefundResult(
         int taxYear,
-        RefundStatus refundStatus,
+        RefundStatus status,
         BigDecimal expectedAmount,
         String trackingId
     ) {}

@@ -26,4 +26,12 @@ public class AiConfig {
             this.model = model;
         }
     }
+
+    public String getProvider() {
+        return provider;
+    }
+
+    public OpenAi getOpenAi() {
+        return openAi;
+    }
 }

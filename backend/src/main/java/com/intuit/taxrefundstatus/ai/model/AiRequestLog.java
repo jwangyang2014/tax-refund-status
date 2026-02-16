@@ -104,7 +104,7 @@ public class AiRequestLog {
         return log(user, requestType, inputPayload, provider, model, outputPayload, false);
     }
 
-    private static AiRequestLog log(
+    public static AiRequestLog log(
         AppUser user, String requestType, String inputPayload,
         String provider, String model, String outputPayload, boolean success) {
         AiRequestLog l = new AiRequestLog();
