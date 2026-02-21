@@ -24,6 +24,19 @@ import static org.mockito.Mockito.*;
 
 class AuthServiceTest {
 
+  private static RegisterRequest registerReq(String email) {
+    return new RegisterRequest(
+        email,
+        "Password123!",
+        "Yang",
+        "Wang",
+        null,                // address optional
+        "Mountain View",
+        "ca",                // lowercase on purpose; service should normalize to CA
+        "555-555-5555"
+    );
+  }
+
   @Test
   void register_createsUser_whenEmailNotUsed() {
     UserRepository userRepo = mock(UserRepository.class);
@@ -36,11 +49,20 @@ class AuthServiceTest {
 
     AuthService svc = new AuthService(userRepo, refreshRepo, jwtService, policy, 14);
 
-    AppUser created = svc.register(new RegisterRequest("A@B.com", "Password123!"));
+    AppUser created = svc.register(registerReq("A@B.com"));
 
     assertEquals("a@b.com", created.getEmail());
     assertEquals(Role.USER, created.getRole());
     assertNotNull(created.getPasswordHash());
+
+    // new fields
+    assertEquals("Yang", created.getFirstName());
+    assertEquals("Wang", created.getLastName());
+    assertNull(created.getAddress());
+    assertEquals("Mountain View", created.getCity());
+    assertEquals("CA", created.getState()); // normalized
+    assertEquals("555-555-5555", created.getPhone());
+
     verify(userRepo).save(any(AppUser.class));
   }
 
@@ -54,8 +76,10 @@ class AuthServiceTest {
 
     AuthService svc = new AuthService(userRepo, refreshRepo, jwtService, new PasswordPolicy(), 14);
 
-    var ex = assertThrows(IllegalArgumentException.class,
-        () -> svc.register(new RegisterRequest("a@b.com", "Password123!")));
+    IllegalArgumentException ex = assertThrows(
+        IllegalArgumentException.class,
+        () -> svc.register(registerReq("a@b.com"))
+    );
     assertEquals("Email already registered", ex.getMessage());
   }
 
@@ -65,11 +89,20 @@ class AuthServiceTest {
     RefreshTokenRepository refreshRepo = mock(RefreshTokenRepository.class);
     JwtService jwtService = mock(JwtService.class);
 
-    // Generate a real bcrypt hash for the password we will use.
     String rawPassword = "Password123!";
     String bcryptHash = new BCryptPasswordEncoder().encode(rawPassword);
 
-    AppUser user = new AppUser("u1@example.com", bcryptHash, Role.USER);
+    AppUser user = new AppUser(
+        "u1@example.com",
+        bcryptHash,
+        "Yang",
+        "Wang",
+        null,
+        "Mountain View",
+        "CA",
+        "555-555-5555",
+        Role.USER
+    );
     user.setIdForTest(1L);
 
     when(userRepo.findByEmailIgnoreCase("u1@example.com")).thenReturn(Optional.of(user));
@@ -103,8 +136,10 @@ class AuthServiceTest {
 
     AuthService svc = new AuthService(userRepo, refreshRepo, jwtService, new PasswordPolicy(), 14);
 
-    var ex = assertThrows(IllegalArgumentException.class,
-        () -> svc.login(new LoginRequest("x@y.com", "Password123!")));
+    IllegalArgumentException ex = assertThrows(
+        IllegalArgumentException.class,
+        () -> svc.login(new LoginRequest("x@y.com", "Password123!"))
+    );
     assertEquals("Bad credentials", ex.getMessage());
   }
 
@@ -114,9 +149,17 @@ class AuthServiceTest {
     RefreshTokenRepository refreshRepo = mock(RefreshTokenRepository.class);
     JwtService jwtService = mock(JwtService.class);
 
-    AppUser user = new AppUser("u1@example.com",
+    AppUser user = new AppUser(
+        "u1@example.com",
         new BCryptPasswordEncoder().encode("Password123!"),
-        Role.USER);
+        "Yang",
+        "Wang",
+        null,
+        "Mountain View",
+        "CA",
+        "555-555-5555",
+        Role.USER
+    );
     user.setIdForTest(1L);
 
     String jti = "1234567890-abcdef";
@@ -145,9 +188,17 @@ class AuthServiceTest {
     RefreshTokenRepository refreshRepo = mock(RefreshTokenRepository.class);
     JwtService jwtService = mock(JwtService.class);
 
-    AppUser user = new AppUser("u1@example.com",
+    AppUser user = new AppUser(
+        "u1@example.com",
         new BCryptPasswordEncoder().encode("Password123!"),
-        Role.USER);
+        "Yang",
+        "Wang",
+        null,
+        "Mountain View",
+        "CA",
+        "555-555-5555",
+        Role.USER
+    );
     user.setIdForTest(1L);
 
     String jti = "1234567890-abcdef";
@@ -160,14 +211,14 @@ class AuthServiceTest {
 
     AuthService svc = new AuthService(userRepo, refreshRepo, jwtService, new PasswordPolicy(), 14);
 
-    var ex = assertThrows(IllegalArgumentException.class, () -> svc.refresh(attackerRaw));
+    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> svc.refresh(attackerRaw));
     assertEquals("Invalid refresh token", ex.getMessage());
     assertTrue(stored.isRevoked(), "replay attempt should revoke stored token");
   }
 
   private static String sha256Base64(String input) {
     try {
-      var md = java.security.MessageDigest.getInstance("SHA-256");
+      java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
       byte[] digest = md.digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8));
       return Base64.getEncoder().encodeToString(digest);
     } catch (Exception e) {

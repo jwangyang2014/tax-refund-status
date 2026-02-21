@@ -4,6 +4,7 @@ import com.intuit.taxrefund.auth.CookieService;
 import com.intuit.taxrefund.auth.api.dto.LoginRequest;
 import com.intuit.taxrefund.auth.service.AuthService;
 import com.intuit.taxrefund.auth.jwt.JwtService;
+import com.intuit.taxrefund.api.GlobalExceptionHandler;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -11,18 +12,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Duration;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(AuthController.class)
 @AutoConfigureMockMvc(addFilters = false) // keep it focused on controller behavior
+@Import(GlobalExceptionHandler.class)     // so 400 becomes JSON, not an exception
 class AuthControllerWebMvcTest {
 
   @Autowired MockMvc mvc;
@@ -30,9 +33,7 @@ class AuthControllerWebMvcTest {
   @MockBean AuthService authService;
   @MockBean CookieService cookieService;
 
-  // IMPORTANT:
-  // @WebMvcTest includes Filter beans by default, so it will create JwtAuthenticationFilter,
-  // which depends on JwtService. Mock it so the context can start.
+  // Optional when addFilters=false, but keeping it is fine.
   @MockBean JwtService jwtService;
 
   @Test
@@ -111,16 +112,12 @@ class AuthControllerWebMvcTest {
   void refresh_returns400_whenCookieMissing() throws Exception {
     when(cookieService.refreshCookieName()).thenReturn("refresh_token");
 
-    Exception ex = assertThrows(Exception.class, () ->
-        mvc.perform(post("/api/auth/refresh")).andReturn()
-    );
-
-    Throwable root = ex;
-    while (root.getCause() != null && root.getCause() != root) {
-      root = root.getCause();
-    }
-
-    assertTrue(root instanceof IllegalArgumentException, "Expected IllegalArgumentException");
-    assertEquals("Missing refresh token", root.getMessage());
+    mvc.perform(post("/api/auth/refresh"))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.status").value(400))
+        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.message").value("Missing refresh token"))
+        .andExpect(jsonPath("$.path").value("/api/auth/refresh"));
   }
 }

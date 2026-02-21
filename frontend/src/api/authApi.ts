@@ -1,10 +1,21 @@
 import { apiFetch, setAccessToken } from "./http";
 import { readApiError } from "./error";
 
-export async function register(email: string, password: string): Promise<void> {
+export type RegisterPayload = {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  address: string | null; // optional
+  city: string;
+  state: string;
+  phone: string | null;
+};
+
+export async function register(payload: RegisterPayload): Promise<void> {
   const res = await apiFetch('/api/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) throw new Error(await readApiError(res));

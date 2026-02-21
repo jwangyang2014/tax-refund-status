@@ -30,11 +30,11 @@ public class AuthService {
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public AuthService(
-            UserRepository userRepo,
-            RefreshTokenRepository refreshRepo,
-            JwtService jwtService,
-            PasswordPolicy passwordPolicy,
-            @Value("${app.security.jwt.refreshTokenDays}") long refreshTokenDays
+        UserRepository userRepo,
+        RefreshTokenRepository refreshRepo,
+        JwtService jwtService,
+        PasswordPolicy passwordPolicy,
+        @Value("${app.security.jwt.refreshTokenDays}") long refreshTokenDays
     ) {
         this.userRepo = userRepo;
         this.refreshRepo = refreshRepo;
@@ -44,7 +44,7 @@ public class AuthService {
     }
 
     public AppUser register(RegisterRequest request) {
-        String email = request.email().toLowerCase();
+        String email = request.email().trim().toLowerCase();
         if (this.userRepo.existsByEmailIgnoreCase(email)) {
             throw new IllegalArgumentException("Email already registered");
         }
@@ -53,12 +53,37 @@ public class AuthService {
         passwordPolicy.validate(password);
         String encodedPassword = passwordEncoder.encode(password);
 
-        return userRepo.save(new AppUser(email, encodedPassword, Role.USER));
+        String firstName = request.firstName().trim();
+        String lastName = request.lastName().trim();
+
+        String address = request.address();
+        if (address != null) {
+            address = address.trim();
+            if (address.isBlank()) address = null;
+        }
+
+        String city = request.city().trim();
+        String state = request.state().trim().toUpperCase(); // keep consistent in DB
+        String phone = request.phone().trim();
+
+        AppUser user = new AppUser(
+            email,
+            encodedPassword,
+            firstName,
+            lastName,
+            address,     // optional
+            city,
+            state,
+            phone,
+            Role.USER    // ✅ role is server-controlled / read-only
+        );
+
+        return userRepo.save(user);
     }
 
     public AuthTokens login(LoginRequest request) {
         AppUser user = userRepo.findByEmailIgnoreCase(request.email())
-                .orElseThrow(() -> new IllegalArgumentException("Bad credentials"));
+            .orElseThrow(() -> new IllegalArgumentException("Bad credentials"));
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new IllegalArgumentException("Bad credentials");
@@ -84,7 +109,7 @@ public class AuthService {
     public AuthTokens refresh(String refreshCookie) {
         ParseRefreshToken parsed = ParseRefreshToken.parse(refreshCookie);
         RefreshToken stored = refreshRepo.findByJti(parsed.jti())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid refresh token"));
+            .orElseThrow(() -> new IllegalArgumentException("Invalid refresh token"));
 
         if (stored.isRevoked() || stored.getExpiresAt().isBefore(Instant.now())) {
             throw new IllegalArgumentException("Refresh token revoked or expired");
@@ -102,10 +127,11 @@ public class AuthService {
     }
 
     public record AuthTokens(
-            String accessToken,
-            String refreshToken,
-            Duration refreshMaxAge
-    ) {}
+        String accessToken,
+        String refreshToken,
+        Duration refreshMaxAge
+    ) {
+    }
 
     private AuthTokens issueTokens(AppUser user, boolean issueRefresh) {
         String accessToken = jwtService.createAccessToken(user.getId(), user.getEmail(), user.getRole().name());

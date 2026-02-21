@@ -11,6 +11,17 @@ import RegisterPage from '../pages/RegisterPage';
 
 const mockRegister = register as unknown as ReturnType<typeof vi.fn>;
 
+function fillRequiredFields() {
+  fireEvent.change(screen.getByLabelText(/^Email/i), { target: { value: 'a@b.com' } });
+  fireEvent.change(screen.getByLabelText(/^Password/i), { target: { value: 'Password123!' } });
+  fireEvent.change(screen.getByLabelText(/^Repeat Password/i), { target: { value: 'Password123!' } });
+  fireEvent.change(screen.getByLabelText(/^First Name/i), { target: { value: 'Yang' } });
+  fireEvent.change(screen.getByLabelText(/^Last Name/i), { target: { value: 'Wang' } });
+  fireEvent.change(screen.getByLabelText(/^City/i), { target: { value: 'Mountain View' } });
+  fireEvent.change(screen.getByLabelText(/^State/i), { target: { value: 'CA' } });
+  // phone + address are optional
+}
+
 describe('RegisterPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -25,15 +36,25 @@ describe('RegisterPage', () => {
 
     render(<RegisterPage onSuccess={onSuccess} onBack={onBack} onError={onError} />);
 
-    // Your email input has no placeholder/label, so select it by "first textbox"
-    const emailInput = screen.getAllByRole('textbox')[0] as HTMLInputElement;
-
-    fireEvent.change(emailInput, { target: { value: 'a@b.com' } });
-    fireEvent.change(screen.getByPlaceholderText('password'), { target: { value: 'Password123!' } });
+    fillRequiredFields();
 
     fireEvent.click(screen.getByRole('button', { name: 'Register' }));
 
-    await waitFor(() => expect(mockRegister).toHaveBeenCalledWith('a@b.com', 'Password123!'));
+    await waitFor(() => {
+      expect(mockRegister).toHaveBeenCalledTimes(1);
+    });
+
+    // Assert the *object payload* (new API shape)
+    expect(mockRegister).toHaveBeenCalledWith({
+      email: 'a@b.com',
+      password: 'Password123!',
+      firstName: 'Yang',
+      lastName: 'Wang',
+      address: null,
+      city: 'Mountain View',
+      state: 'CA',
+      phone: null
+    });
 
     expect(onSuccess).toHaveBeenCalledTimes(1);
     expect(onError).not.toHaveBeenCalled();
@@ -48,10 +69,10 @@ describe('RegisterPage', () => {
 
     render(<RegisterPage onSuccess={onSuccess} onBack={onBack} onError={onError} />);
 
+    fillRequiredFields();
     fireEvent.click(screen.getByRole('button', { name: 'Register' }));
 
     await waitFor(() => expect(onError).toHaveBeenCalledWith('Email already registered'));
-
     expect(onSuccess).not.toHaveBeenCalled();
   });
 

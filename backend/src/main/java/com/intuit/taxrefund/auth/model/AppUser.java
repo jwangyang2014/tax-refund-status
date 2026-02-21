@@ -8,7 +8,7 @@ import java.time.Instant;
 @Table(name = "app_user")
 public class AppUser {
     @Id
-    @GeneratedValue (strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false, unique = true)
@@ -17,6 +17,27 @@ public class AppUser {
     @Column(nullable = false, name = "password_hash")
     private String passwordHash;
 
+    // ✅ Profile fields
+    @Column(nullable = false, name = "first_name", length = 100)
+    private String firstName;
+
+    @Column(nullable = false, name = "last_name", length = 100)
+    private String lastName;
+
+    @Column(nullable = true, name = "address", length = 255)
+    private String address;
+
+    @Column(nullable = false, name = "city", length = 100)
+    private String city;
+
+    // State required for refund timelines
+    @Column(nullable = false, name = "state", length = 2)
+    private String state;
+
+    @Column(nullable = false, name = "phone", length = 30)
+    private String phone;
+
+    // ✅ read-only from API perspective; still stored in DB
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
@@ -24,11 +45,28 @@ public class AppUser {
     @Column(nullable = false, name = "created_at")
     private Instant createdAt = Instant.now();
 
-    protected AppUser() {}
+    protected AppUser() {
+    }
 
-    public AppUser(String email, String passwordHash, Role role) {
+    public AppUser(
+        String email,
+        String passwordHash,
+        String firstName,
+        String lastName,
+        String address,
+        String city,
+        String state,
+        String phone,
+        Role role
+    ) {
         this.email = email;
         this.passwordHash = passwordHash;
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.address = address;
+        this.city = city;
+        this.state = state;
+        this.phone = phone;
         this.role = role;
     }
 
@@ -42,6 +80,30 @@ public class AppUser {
 
     public String getPasswordHash() {
         return passwordHash;
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public String getCity() {
+        return city;
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    public String getPhone() {
+        return phone;
     }
 
     public Role getRole() {
