@@ -62,12 +62,6 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping("/me")
-    public MeResponse me(Authentication auth) {
-        JwtService.JwtPrincipal principal = (JwtService.JwtPrincipal) auth.getPrincipal();
-        return new MeResponse(principal.userId(), principal.email(), principal.role());
-    }
-
     private static String readCookie(HttpServletRequest req, String name) {
         Cookie[] cookies = req.getCookies();
 

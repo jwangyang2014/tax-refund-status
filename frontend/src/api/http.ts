@@ -1,11 +1,12 @@
 let accessToken: string | null = null;
+const SERVER_URL = import.meta.env.VITE_SERVER_URL ?? '';
 
 export function setAccessToken(token: string | null) {
   accessToken = token;
 }
 
 async function refreshAccessToken(): Promise<string> {
-  const res = await fetch('/api/auth/refresh', {
+  const res = await fetch(`${SERVER_URL}/api/auth/refresh`, {
     method: 'POST',
     credentials: 'include'
   });
@@ -38,9 +39,12 @@ async function doFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers || {});
 
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
-  headers.set('Content-Type', 'application/json');
 
-  return await fetch(url, {
+  if (init.body !== undefined) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  return await fetch(`${SERVER_URL}${url}`, {
     ...init,
     headers,
     credentials: 'include'

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { logout, me } from "./api/authApi";
 import ErrorBanner from "./components/ErrorBanner";
 import LoginPage from "./pages/LoginPage";
@@ -11,6 +11,26 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('login');
   const [error, setError] = useState<string | null>(null);
 
+  // ✅ stable handlers so children don't re-run effects endlessly
+  const handleError = useCallback((message: string) => {
+    setError(message);
+  }, []);
+
+  const goLogin = useCallback(() => {
+    setError(null);
+    setScreen('login');
+  }, []);
+
+  const goRegister = useCallback(() => {
+    setError(null);
+    setScreen('register');
+  }, []);
+
+  const goDashboard = useCallback(() => {
+    setError(null);
+    setScreen('dashboard');
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
@@ -22,51 +42,40 @@ export default function App() {
     })();
   }, []);
 
-  async function doLogout() {
+  const doLogout = useCallback(async () => {
     try {
       await logout();
     } finally {
+      setError(null);
       setScreen('login');
     }
-  }
+  }, []);
 
   return (
-    <div style={{ padding: 16, fontFamily: 'sans-serif'}}>
+    <div style={{ padding: 16, fontFamily: 'sans-serif' }}>
       <h2>TurboTax Refund Status (Demo)</h2>
       <ErrorBanner message={error} />
 
       {screen === 'login' ? (
         <LoginPage
-          onSuccess={() => {
-            setError(null);
-            setScreen('dashboard');
-          }}
-          onRegister={() => {
-            setError(null);
-            setScreen('register');
-          }}
-          onError={(message) => setError(message)}
+          onSuccess={goDashboard}
+          onRegister={goRegister}
+          onError={handleError}
         />
       ) : null}
 
       {screen === 'register' ? (
         <RegisterPage
-          onSuccess={() => {
-            setError(null);
-            setScreen('login');
-          }}
-          onBack={() => {
-            setError(null);
-            setScreen('login');
-          }}
-          onError={(message) => setError(message)}
+          onSuccess={goLogin}
+          onBack={goLogin}
+          onError={handleError}
         />
       ) : null}
 
       {screen === 'dashboard' ? (
         <DashboardPage
           onLogout={doLogout}
-          onError={(message) => setError(message)}
+          onError={handleError}
         />
       ) : null}
     </div>

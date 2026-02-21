@@ -8,10 +8,7 @@ import com.intuit.taxrefund.refund.service.MockIrsAdapter;
 import com.intuit.taxrefund.refund.service.RefundService;
 import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/refund")
@@ -24,6 +21,7 @@ public class RefundController {
         this.mockIrs = mockIrs;
     }
 
+    @GetMapping("/latest")
     public RefundStatusResponse latest(Authentication auth) {
         JwtService.JwtPrincipal principal = (JwtService.JwtPrincipal) auth.getPrincipal();
         return refundService.getLatestRefundStatus(principal);
