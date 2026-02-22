@@ -1,4 +1,8 @@
 services:
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
   db:
     image: postgres:16
     environment:
@@ -28,7 +32,7 @@ services:
     ports:
       - "${BACKEND_PORT}:8080"
     depends_on:
-      db:
+      redis:
         condition: service_healthy
 
   frontend:

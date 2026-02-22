@@ -1,10 +1,12 @@
 package com.intuit.taxrefund.auth.api;
 
+import com.intuit.taxrefund.api.GlobalExceptionHandler;
 import com.intuit.taxrefund.auth.CookieService;
 import com.intuit.taxrefund.auth.api.dto.LoginRequest;
-import com.intuit.taxrefund.auth.service.AuthService;
 import com.intuit.taxrefund.auth.jwt.JwtService;
-import com.intuit.taxrefund.api.GlobalExceptionHandler;
+import com.intuit.taxrefund.auth.service.AuthService;
+import com.intuit.taxrefund.ratelimit.RateLimitProps;
+import com.intuit.taxrefund.ratelimit.RedisRateLimiter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -35,6 +37,10 @@ class AuthControllerWebMvcTest {
 
   // Optional when addFilters=false, but keeping it is fine.
   @MockBean JwtService jwtService;
+
+  // ✅ Added: satisfy RateLimitFilter constructor deps even in @WebMvcTest slice
+  @MockBean RateLimitProps rateLimitProps;
+  @MockBean RedisRateLimiter redisRateLimiter;
 
   @Test
   void login_setsRefreshCookie_andReturnsAccessToken() throws Exception {

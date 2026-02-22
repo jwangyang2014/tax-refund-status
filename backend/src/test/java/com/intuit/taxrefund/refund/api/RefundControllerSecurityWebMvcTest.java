@@ -6,6 +6,9 @@ import com.intuit.taxrefund.auth.jwt.JwtService;
 import com.intuit.taxrefund.refund.api.dto.RefundStatusResponse;
 import com.intuit.taxrefund.refund.service.MockIrsAdapter;
 import com.intuit.taxrefund.refund.service.RefundService;
+import com.intuit.taxrefund.ratelimit.RateLimitProps;
+import com.intuit.taxrefund.ratelimit.RedisRateLimiter;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -32,6 +35,16 @@ class RefundControllerSecurityWebMvcTest {
   @MockBean MockIrsAdapter mockIrsAdapter;
 
   @MockBean JwtService jwtService;
+
+  // ✅ Added: satisfy RateLimitFilter constructor deps in WebMvc slice
+  @MockBean RateLimitProps rateLimitProps;
+  @MockBean RedisRateLimiter redisRateLimiter;
+
+  @BeforeEach
+  void disableRateLimiting() {
+    // ✅ simplest: make filter no-op for these tests
+    when(rateLimitProps.enabled()).thenReturn(false);
+  }
 
   @Test
   void latest_requiresAuth_returns401_whenNoBearer() throws Exception {
