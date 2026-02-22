@@ -161,5 +161,10 @@ curl http://localhost:8000/model/info
 # Train
 curl -s -X POST http://localhost:8000/train
 curl -s http://localhost:8000/model/info
-```
 
+# Check logs
+docker compose logs -n 200 ml
+
+# Stop
+docker-compose down ml
+```

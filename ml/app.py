@@ -120,8 +120,11 @@ def model_info():
 
 @app.post("/train")
 def train():
-    meta = train_and_save()
-    return meta
+    try:
+        return train_and_save()
+    except Exception as e:
+        # Return the actual reason instead of a generic 500
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(req: PredictRequest):

@@ -10,4 +10,5 @@ public interface RefundEtaPredictionRepository extends JpaRepository<RefundEtaPr
     Optional<RefundEtaPrediction> findTopByUserIdAndTaxYearAndStatusOrderByCreatedAtDesc(
         Long userId, int taxYear, String status
     );
+    boolean existsByUserIdAndTaxYearAndStatusAndModelVersion(Long userId, int taxYear, String status, String modelVersion);
 }
