@@ -1,6 +1,7 @@
 package com.intuit.taxrefund;
 
 import com.intuit.taxrefund.ml.MlProps;
+import com.intuit.taxrefund.openai.OpenAiProps;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -10,7 +11,7 @@ import com.intuit.taxrefund.ratelimit.RateLimitProps;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@EnableConfigurationProperties({ CookieProps.class, RateLimitProps.class, MlProps.class })
+@EnableConfigurationProperties({ CookieProps.class, RateLimitProps.class, MlProps.class, OpenAiProps.class })
 @EnableScheduling
 public class TaxRefundApplication {
     public static void main(String[] args) {

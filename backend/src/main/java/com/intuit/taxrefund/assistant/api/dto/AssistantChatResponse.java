@@ -9,10 +9,7 @@ public record AssistantChatResponse(
     Confidence confidence
 ) {
     public enum Confidence { LOW, MEDIUM, HIGH }
-
     public record Citation(String docId, String quote) {}
-
     public record Action(ActionType type, String label) {}
-
     public enum ActionType { REFRESH, CONTACT_SUPPORT, SHOW_TRACKING }
 }

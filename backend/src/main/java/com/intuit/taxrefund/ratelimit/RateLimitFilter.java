@@ -46,6 +46,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         RateLimitProps.Policy policy = null;
         if ("GET".equals(method) && "/api/refund/latest".equals(path)) policy = props.refundLatest();
         if ("POST".equals(method) && "/api/assistant/chat".equals(path)) policy = props.assistantChat();
+        if ("POST".equals(method) && "/api/assistant/chat".equals(path)) policy = props.assistantChat();
 
         if (policy == null) {
             chain.doFilter(req, res);
