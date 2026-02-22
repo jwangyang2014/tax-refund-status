@@ -1,35 +1,38 @@
 package com.intuit.taxrefund.refund.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.intuit.taxrefund.ai.AiConfig;
-import com.intuit.taxrefund.ai.model.AiRequestLog;
-import com.intuit.taxrefund.ai.repo.AiRequestLogRepository;
-import com.intuit.taxrefund.ai.service.AiClient;
-import com.intuit.taxrefund.ai.service.AiClientRouter;
+import com.intuit.taxrefund.ai.model.RefundEtaPrediction;
+import com.intuit.taxrefund.ai.repo.RefundEtaPredictionRepository;
 import com.intuit.taxrefund.auth.jwt.JwtService;
 import com.intuit.taxrefund.auth.model.AppUser;
 import com.intuit.taxrefund.auth.repo.UserRepository;
+import com.intuit.taxrefund.outbox.model.OutboxEvent;
+import com.intuit.taxrefund.outbox.repo.OutboxEventRepository;
 import com.intuit.taxrefund.refund.api.dto.RefundStatusResponse;
 import com.intuit.taxrefund.refund.model.RefundRecord;
 import com.intuit.taxrefund.refund.model.RefundStatus;
+import com.intuit.taxrefund.refund.model.RefundStatusEvent;
 import com.intuit.taxrefund.refund.repo.RefundRecordRepository;
+import com.intuit.taxrefund.refund.repo.RefundStatusEventRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 
 @Service
 public class RefundService {
-    private static final long SECONDS_IN_DAY = 86400L;
 
     private final RefundRecordRepository refundRepo;
     private final UserRepository userRepo;
     private final IrsAdapter irs;
-    private final AiRequestLogRepository aiLogRepo;
-    private final AiConfig aiConfig;
-    private final AiClient aiClient;
+
+    private final RefundStatusEventRepository statusEventRepo;
+    private final OutboxEventRepository outboxRepo;
+    private final RefundEtaPredictionRepository etaRepo;
+
     private final StringRedisTemplate redis;
     private final ObjectMapper objectMapper;
 
@@ -37,19 +40,20 @@ public class RefundService {
         RefundRecordRepository refundRepo,
         UserRepository userRepo,
         IrsAdapter irs,
-        AiClientRouter aiClientRouter,
-        AiRequestLogRepository aiLogRepo,
-        AiConfig aiConfig,
+        RefundStatusEventRepository statusEventRepo,
+        OutboxEventRepository outboxRepo,
+        RefundEtaPredictionRepository etaRepo,
         StringRedisTemplate redis,
         ObjectMapper objectMapper
     ) {
         this.refundRepo = refundRepo;
         this.userRepo = userRepo;
         this.irs = irs;
-        this.aiLogRepo = aiLogRepo;
-        this.aiConfig = aiConfig;
 
-        this.aiClient = aiClientRouter.getClient();
+        this.statusEventRepo = statusEventRepo;
+        this.outboxRepo = outboxRepo;
+        this.etaRepo = etaRepo;
+
         this.redis = redis;
         this.objectMapper = objectMapper;
     }
@@ -68,36 +72,68 @@ public class RefundService {
             }
         }
 
+        // 1) Fetch latest from IRS adapter
         IrsAdapter.IrsRefundResult irsResult = irs.fetchMostRecentRefund(userId);
+
+        // 2) Load/create record
         RefundRecord record = refundRepo.findByUserIdAndTaxYear(userId, irsResult.taxYear())
             .orElseGet(() -> {
                 AppUser user = userRepo.findById(userId).orElseThrow();
                 return new RefundRecord(user, irsResult.taxYear(), RefundStatus.RECEIVED);
             });
 
+        // 3) Update record and write event + outbox if status changed
+        RefundStatus oldStatus = record.getStatus();
         record.updateFromIrs(irsResult.status(), irsResult.expectedAmount(), irsResult.trackingId());
 
-        // If not AVAILABLE, ask AI for ETA and store estimated date
-        Instant estimatedAvailableAt = record.getAvailableAtEstimated();
-        String aiExplanation = null;
+        RefundStatus newStatus = record.getStatus();
+        boolean statusChanged = oldStatus != newStatus;
 
-        RefundStatus status  = record.getStatus();
-        if (status != RefundStatus.AVAILABLE && status != RefundStatus.REJECTED) {
-            String input = "status=" + status + ", expectedAmount=" + record.getExpectedAmount();
-            AppUser user = record.getUser();
+        if (statusChanged) {
+            statusEventRepo.save(RefundStatusEvent.of(
+                userId,
+                record.getTaxYear(),
+                oldStatus,
+                newStatus,
+                record.getExpectedAmount(),
+                record.getIrsTrackingId(),
+                "IRS"
+            ));
+
+            // payload is stored as jsonb string; keep it simple + deterministic
+            String payloadJson;
             try {
-                AiClient.PredictEtaResult aiEta = aiClient.predictRefundEtaDays(status, record.getExpectedAmount());
-                estimatedAvailableAt = Instant.now().plusSeconds(aiEta.etaDays() * SECONDS_IN_DAY);
-                aiExplanation = aiEta.explanation();
-
-                logAiRequest(user, input, true,
-                    "{\"etaDays\": " + aiEta.etaDays() + ", \"explanation\": \"" + safe(aiEta.explanation()) + "\"}"
-                );
+                payloadJson = objectMapper.writeValueAsString(Map.of(
+                    "userId", userId,
+                    "taxYear", record.getTaxYear(),
+                    "status", newStatus.name(),
+                    "expectedAmount", record.getExpectedAmount(),
+                    "trackingId", record.getIrsTrackingId()
+                ));
             } catch (Exception e) {
-                logAiRequest(user, input, false, e.getMessage());
+                // fallback: minimal payload
+                payloadJson = "{\"userId\":" + userId + ",\"taxYear\":" + record.getTaxYear() + ",\"status\":\"" + newStatus.name() + "\"}";
             }
 
-            record.setAvailableAtEstimated(estimatedAvailableAt);
+            outboxRepo.save(OutboxEvent.newEvent(
+                "REFUND_STATUS_UPDATED",
+                userId + ":" + record.getTaxYear(),
+                payloadJson
+            ));
+
+            // Invalidate cache on change
+            redis.delete(cacheKey);
+        }
+
+        // 4) Read latest persisted ETA prediction (do NOT call AI inline)
+        Instant estimatedAvailableAt = record.getAvailableAtEstimated(); // fallback
+        RefundEtaPrediction pred = etaRepo
+            .findTopByUserIdAndTaxYearAndStatusOrderByCreatedAtDesc(userId, record.getTaxYear(), record.getStatus().name())
+            .orElse(null);
+
+        if (pred != null && pred.getEstimatedAvailableAt() != null) {
+            estimatedAvailableAt = pred.getEstimatedAvailableAt();
+            record.setAvailableAtEstimated(estimatedAvailableAt); // keep last-known on record
         }
 
         refundRepo.save(record);
@@ -108,11 +144,11 @@ public class RefundService {
             record.getLastUpdatedAt(),
             record.getExpectedAmount(),
             record.getIrsTrackingId(),
-            record.getAvailableAtEstimated(),
-            aiExplanation
+            estimatedAvailableAt,
+            null // aiExplanation moved to assistant layer (LLM) instead of core API
         );
 
-        // Cache the result
+        // 5) Cache response (short TTL to handle burst traffic)
         try {
             redis.opsForValue().set(cacheKey, objectMapper.writeValueAsString(resp), Duration.ofSeconds(60));
         } catch (Exception ignore) {
@@ -120,22 +156,5 @@ public class RefundService {
         }
 
         return resp;
-    }
-
-    private void logAiRequest(AppUser user, String input, boolean success, String output) {
-        aiLogRepo.save(AiRequestLog.log(
-            user,
-            "REFUND_ETA",
-            input,
-            aiConfig.getProvider(),
-            aiClient.getModel(),
-            output,
-            success
-        ));
-    }
-
-    private static String safe(String s) {
-        if (s == null) return "null";
-        return s.replace("\"", "'");
     }
 }
