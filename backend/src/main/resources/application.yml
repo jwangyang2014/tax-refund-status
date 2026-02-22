@@ -1,9 +1,15 @@
 server:
   port: 8080
 
+data:
+  redis:
+    host: redis
+    port: 6379
+
 logging:
   level:
     org.springframework.security: DEBUG
+
 spring:
   datasource:
     url: ${POSTGRES_DB_URL:jdbc:postgresql://localhost:5432/refund}
@@ -18,7 +24,32 @@ spring:
   flyway:
     enabled: true
 
+# health check end points /actuator/health/liveness, /actuator/health/readiness
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+
 app:
+  ratelimit:
+    enabled: true
+    refundLatest:
+      capacity: 30          # burst tokens
+      refillPerMinute: 30   # steady rate
+    assistantChat:
+      capacity: 10
+      refillPerMinute: 10
+
   security:
     jwt:
       secret: ${APP_SECURITY_JWT_SECRET:change-me-change-me-change-me-change-me-123456}
