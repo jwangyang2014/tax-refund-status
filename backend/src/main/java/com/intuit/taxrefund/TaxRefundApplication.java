@@ -7,9 +7,11 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 
 import com.intuit.taxrefund.auth.CookieProps;
 import com.intuit.taxrefund.ratelimit.RateLimitProps;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableConfigurationProperties({ CookieProps.class, RateLimitProps.class, MlProps.class })
+@EnableScheduling
 public class TaxRefundApplication {
     public static void main(String[] args) {
         SpringApplication.run(TaxRefundApplication.class, args);

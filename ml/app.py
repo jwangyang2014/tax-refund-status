@@ -22,6 +22,7 @@ class PredictRequest(BaseModel):
     userId: int
     taxYear: int
     status: str
+    filingState: Optional[str] = None
     expectedAmount: Optional[float] = None
 
 class PredictResponse(BaseModel):
@@ -47,13 +48,13 @@ def build_training_frame(limit=200000):
     q = text(f"""
       with ev as (
         select
-          user_id, tax_year, to_status as status, expected_amount,
+          user_id, tax_year, filing_state, to_status as status, expected_amount,
           occurred_at,
           max(case when to_status='AVAILABLE' then occurred_at end) over (partition by user_id, tax_year) as available_at
         from refund_status_event
       )
       select
-        user_id, tax_year, status,
+        user_id, tax_year, filing_state, status,
         coalesce(expected_amount, 0) as expected_amount,
         extract(epoch from (available_at - occurred_at))/86400.0 as days_to_available,
         occurred_at
@@ -68,11 +69,13 @@ def build_training_frame(limit=200000):
     if df.empty:
         return df
     df["status"] = df["status"].astype(str)
+    df["filing_state"] = df.get("filing_state", "NA").fillna("NA").astype(str).str.upper()
     df["expected_amount"] = df["expected_amount"].astype(float)
     df["days_to_available"] = df["days_to_available"].astype(float)
     # Optional seasonality
     df["dow"] = pd.to_datetime(df["occurred_at"]).dt.dayofweek
     df["month"] = pd.to_datetime(df["occurred_at"]).dt.month
+
     return df
 
 def train_and_save():
@@ -80,12 +83,12 @@ def train_and_save():
     if df.empty or len(df) < 50:
         raise RuntimeError("Not enough training data (need >= 50 rows with AVAILABLE outcomes).")
 
-    X = df[["status", "expected_amount", "dow", "month"]]
+    X = df[["status", "filing_state", "expected_amount", "dow", "month"]]
     y = df["days_to_available"]
 
     pre = ColumnTransformer(
         transformers=[
-            ("status", OneHotEncoder(handle_unknown="ignore"), ["status"]),
+            ("cat", OneHotEncoder(handle_unknown="ignore"), ["status", "filing_state"]),
             ("num", "passthrough", ["expected_amount", "dow", "month"]),
         ]
     )
@@ -102,7 +105,7 @@ def train_and_save():
         "modelVersion": datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
         "trainedAt": datetime.now(timezone.utc).isoformat(),
         "rows": int(len(df)),
-        "features": ["status", "expected_amount", "dow", "month"]
+        "features": ["status", "filing_state", "expected_amount", "dow", "month"]
     }
     json.dump(meta, open(MODEL_META_PATH, "w"))
     return meta
@@ -132,8 +135,11 @@ def predict(req: PredictRequest):
     month = now.month
     expected = float(req.expectedAmount or 0.0)
 
+    filing_state = (req.filingState or "NA").upper()
+
     X = pd.DataFrame([{
         "status": req.status,
+        "filing_state": filing_state,
         "expected_amount": expected,
         "dow": dow,
         "month": month
@@ -146,5 +152,5 @@ def predict(req: PredictRequest):
         etaDays=eta_days,
         modelName=meta.get("modelName", "gbrt"),
         modelVersion=meta.get("modelVersion", "unknown"),
-        features={"status": req.status, "expected_amount": expected, "dow": dow, "month": month}
+        features={"status": req.status, "filing_state": filing_state, "expected_amount": expected, "dow": dow, "month": month}
     )

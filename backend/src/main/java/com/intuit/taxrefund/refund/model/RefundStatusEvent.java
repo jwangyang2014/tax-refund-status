@@ -24,6 +24,9 @@ public class RefundStatusEvent {
     @Column(nullable = false, name = "tax_year")
     private int taxYear;
 
+    @Column(name = "filing_state", length = 2)
+    private String filingState;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "from_status")
     private RefundStatus fromStatus;
@@ -49,6 +52,7 @@ public class RefundStatusEvent {
     private RefundStatusEvent(
         Long userId,
         int taxYear,
+        String filingState,
         RefundStatus fromStatus,
         RefundStatus toStatus,
         BigDecimal expectedAmount,
@@ -57,6 +61,7 @@ public class RefundStatusEvent {
     ) {
         this.userId = userId;
         this.taxYear = taxYear;
+        this.filingState = filingState;
         this.fromStatus = fromStatus;
         this.toStatus = toStatus;
         this.expectedAmount = expectedAmount;
@@ -68,18 +73,20 @@ public class RefundStatusEvent {
     public static RefundStatusEvent of(
         Long userId,
         int taxYear,
+        String filingState,
         RefundStatus fromStatus,
         RefundStatus toStatus,
         BigDecimal expectedAmount,
         String irsTrackingId,
         String source
     ) {
-        return new RefundStatusEvent(userId, taxYear, fromStatus, toStatus, expectedAmount, irsTrackingId, source);
+        return new RefundStatusEvent(userId, taxYear, filingState, fromStatus, toStatus, expectedAmount, irsTrackingId, source);
     }
 
     public Long getId() { return id; }
     public Long getUserId() { return userId; }
     public int getTaxYear() { return taxYear; }
+    public String getFilingState() { return filingState; }
     public RefundStatus getFromStatus() { return fromStatus; }
     public RefundStatus getToStatus() { return toStatus; }
     public BigDecimal getExpectedAmount() { return expectedAmount; }

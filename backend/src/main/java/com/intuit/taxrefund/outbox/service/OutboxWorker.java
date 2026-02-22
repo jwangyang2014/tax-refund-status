@@ -64,6 +64,7 @@ public class OutboxWorker {
 
         Long userId = payload.path("userId").asLong();
         int taxYear = payload.path("taxYear").asInt();
+        String filingState = payload.path("filingState").asText("NA");
         String status = payload.path("status").asText();
 
         BigDecimal expectedAmount = null;
@@ -74,7 +75,7 @@ public class OutboxWorker {
         }
 
         // Call ML
-        MlEtaClient.PredictResponse pred = ml.predict(userId, taxYear, status, expectedAmount);
+        MlEtaClient.PredictResponse pred = ml.predict(userId, taxYear, status, filingState, expectedAmount);
 
         // Persist prediction
         Instant estimatedAvailableAt = Instant.now().plusSeconds((long) pred.etaDays() * SECONDS_IN_DAY);

@@ -93,6 +93,7 @@ public class RefundService {
             statusEventRepo.save(RefundStatusEvent.of(
                 userId,
                 record.getTaxYear(),
+                record.getUser().getState(),
                 oldStatus,
                 newStatus,
                 record.getExpectedAmount(),
@@ -106,6 +107,7 @@ public class RefundService {
                 payloadJson = objectMapper.writeValueAsString(Map.of(
                     "userId", userId,
                     "taxYear", record.getTaxYear(),
+                    "filingState", record.getUser().getState(),
                     "status", newStatus.name(),
                     "expectedAmount", record.getExpectedAmount(),
                     "trackingId", record.getIrsTrackingId()

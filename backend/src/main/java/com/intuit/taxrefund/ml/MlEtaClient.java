@@ -39,11 +39,12 @@ public class MlEtaClient {
         }
     }
 
-    public PredictResponse predict(Long userId, int taxYear, String status, BigDecimal expectedAmount) {
+    public PredictResponse predict(Long userId, int taxYear, String status, String filingState, BigDecimal expectedAmount) {
         Map<String, Object> body = Map.of(
             "userId", userId,
             "taxYear", taxYear,
             "status", status,
+            "filingState", filingState,
             "expectedAmount", expectedAmount
         );
 
