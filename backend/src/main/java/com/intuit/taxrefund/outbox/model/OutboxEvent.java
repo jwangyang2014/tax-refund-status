@@ -1,6 +1,8 @@
 package com.intuit.taxrefund.outbox.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 
@@ -24,6 +26,7 @@ public class OutboxEvent {
     @Column(nullable = false, name = "aggregate_key", length = 120)
     private String aggregateKey;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
     private String payload;
 

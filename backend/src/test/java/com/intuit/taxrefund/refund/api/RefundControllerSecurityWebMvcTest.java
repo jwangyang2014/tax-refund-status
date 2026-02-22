@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -36,13 +37,15 @@ class RefundControllerSecurityWebMvcTest {
 
   @MockBean JwtService jwtService;
 
-  // ✅ Added: satisfy RateLimitFilter constructor deps in WebMvc slice
+  @MockBean
+  StringRedisTemplate redis;
+
+  // satisfy RateLimitFilter constructor deps in WebMvc slice
   @MockBean RateLimitProps rateLimitProps;
   @MockBean RedisRateLimiter redisRateLimiter;
 
   @BeforeEach
   void disableRateLimiting() {
-    // ✅ simplest: make filter no-op for these tests
     when(rateLimitProps.enabled()).thenReturn(false);
   }
 

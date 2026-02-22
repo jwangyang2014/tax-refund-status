@@ -7,6 +7,7 @@ import com.intuit.taxrefund.refund.service.IrsAdapter;
 import com.intuit.taxrefund.refund.service.MockIrsAdapter;
 import com.intuit.taxrefund.refund.service.RefundService;
 import jakarta.validation.Valid;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,10 +16,12 @@ import org.springframework.web.bind.annotation.*;
 public class RefundController {
     private final RefundService refundService;
     private final MockIrsAdapter mockIrs;
+    private final StringRedisTemplate redis;
 
-    public RefundController(RefundService refundService, MockIrsAdapter mockIrs) {
+    public RefundController(RefundService refundService, MockIrsAdapter mockIrs, StringRedisTemplate redis) {
         this.refundService = refundService;
         this.mockIrs = mockIrs;
+        this.redis = redis;
     }
 
     @GetMapping("/latest")
@@ -37,5 +40,8 @@ public class RefundController {
                 req.taxYear(), req.statusEnum(), req.expectedAmount(), req.trackingId()
             )
         );
+
+        // invalidate cached /latest response so UI sees change immediately
+        redis.delete("refund:latest:" + principal.userId());
     }
 }

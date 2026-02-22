@@ -17,6 +17,18 @@ services:
       timeout: 3s
       retries: 20
 
+  ml:
+    image: tax-refund-ml:latest
+    build:
+      context: ./ml
+    environment:
+      ML_DB_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      ML_MODEL_PATH: /models/eta_model.joblib
+      ML_MODEL_META_PATH: /models/eta_model_meta.json
+    ports:
+      - "8000:8000"
+
+
   backend:
     build:
       context: ./backend

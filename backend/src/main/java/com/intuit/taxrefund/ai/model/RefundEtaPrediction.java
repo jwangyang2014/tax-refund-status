@@ -1,6 +1,8 @@
 package com.intuit.taxrefund.ai.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 
@@ -43,6 +45,7 @@ public class RefundEtaPrediction {
     private String modelVersion;
 
     // keep demo-simple: store JSON as string
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
     private String features;
 

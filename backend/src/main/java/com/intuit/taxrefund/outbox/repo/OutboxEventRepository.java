@@ -8,12 +8,17 @@ import java.util.List;
 
 public interface OutboxEventRepository extends JpaRepository<OutboxEvent, Long> {
 
-    // Demo-simple: just read oldest unprocessed.
-    // In production: use FOR UPDATE SKIP LOCKED in a native query + separate worker transaction.
     @Query("""
         select e from OutboxEvent e
         where e.processedAt is null
         order by e.createdAt asc
     """)
     List<OutboxEvent> findUnprocessed();
+
+    @Query("""
+        select e from OutboxEvent e
+        where e.processedAt is null and e.attempts < :maxAttempts
+        order by e.createdAt asc
+    """)
+    List<OutboxEvent> findUnprocessedWithAttemptsLessThan(int maxAttempts);
 }

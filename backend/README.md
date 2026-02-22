@@ -22,6 +22,7 @@ From the project root:
 set -a      # turn on auto-export
 source .env # load variables
 set +a      # turn off auto-export
+docker-compose up -d ml # run ML docker
 ./mvnw clean spring-boot:run
 ```
 
@@ -146,3 +147,19 @@ redis-cli info keyspace
 # List keys
 redis-cli --scan
 ```
+
+# Build and run ML service
+```bash
+# from repo root
+docker-compose build
+docker-compose up -d ml
+
+# Check health
+curl http://localhost:8000/health
+curl http://localhost:8000/model/info
+
+# Train
+curl -s -X POST http://localhost:8000/train
+curl -s http://localhost:8000/model/info
+```
+

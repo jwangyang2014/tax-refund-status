@@ -5,9 +5,14 @@ import type { RefundStatusResponse } from '../api/.types';
 import { errorMessage } from '../utils';
 
 function nextStatus(curr: string): string {
-  const ordered = ['RECEIVED', 'PROCESSING', 'APPROVED', 'SENT', 'AVAILABLE'];
-  const index = ordered.indexOf(curr);
-  return index < 0 ? 'RECEIVED' : ordered[Math.min(index + 1, ordered.length - 1)];
+  const ordered = ['RECEIVED', 'PROCESSING', 'APPROVED', 'SENT', 'AVAILABLE'] as const;
+  const index = ordered.indexOf(curr as (typeof ordered)[number]);
+
+  // if not found, start at the beginning
+  if (index < 0) return ordered[0];
+
+  // cycle to the next one (wrap around)
+  return ordered[(index + 1) % ordered.length];
 }
 
 export default function DashboardPage({
